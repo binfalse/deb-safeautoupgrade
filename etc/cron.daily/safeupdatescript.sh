@@ -20,6 +20,7 @@
 MAILTO=root
 FORCEUPDATE=false
 HOST=$(hostname)
+BLACKLIST=""
 
 # read configuration from settings file
 [ -e /etc/default/deb-safeupgrade ] && source /etc/default/deb-safeupgrade
@@ -49,6 +50,21 @@ do
     let "UPDATEABLE++"
     pkg=$(echo $package | awk '{print $2}')
 
+    blacklist=
+    for black in $BLACKLIST
+    do
+        if [[ "$pkg" =~ "$black" ]]
+        then
+            blacklist="$blacklist$pkg blacklisted by $black\n"
+            break
+        fi
+    done
+    if [ -n "$blacklist" ]
+    then
+        FAIL="$FAIL$blacklist\n"
+        continue
+    fi
+
     # what config files does it have?
     dpkg-query --showformat='${Conffiles}\n' --show $pkg 2>/dev/null | \grep -v "^$" > "$conftemp"
 
@@ -76,7 +92,7 @@ then
     else
         FAIL="cannot update automatically...\n$FAIL\nplease review manually."
         echo -e "$FAIL" | mail -s "auto update failed on $HOST" $MAILTO
-        echo "auto update aborted due to updated configs"
+        echo "auto update aborted - see email"
         rm "$conftemp" "$simtemp"
         exit 2
     fi
@@ -95,8 +111,13 @@ RESULT="starting auto update:\n"$(cat "$simtemp")
 # clean up
 rm "$conftemp" "$simtemp"
 
-RESULT="$RESULT\n\n"$(aptitude -y -v -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" safe-upgrade)
+RESULT="$RESULT\n\n"$(DEBIAN_FRONTEND=noninteractive aptitude -y -v -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" safe-upgrade)
 
-echo -e "$RESULT" | mail -s "auto updated system $HOST" $MAILTO
+if [ "$?" -gt 0 ]
+then
+    echo -e "$RESULT" | mail -s "auto update failed on system $HOST" $MAILTO
+else
+    echo -e "$RESULT" | mail -s "auto updated system $HOST" $MAILTO
+fi
 
 

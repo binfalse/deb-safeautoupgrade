@@ -32,3 +32,15 @@ MAILTO=root
 # set the hostname as it will be used on the mail's subject line
 # defaults to the output of the hostname command, see hostname(1)
 #HOST=
+
+
+# optional list of packages that shouldn't be installed automatically
+# for example PAM uses to overwrite its config as post-update-hook
+# so we cannot compare hashes and you may lock yourself out of the system
+#
+# the list contains "parts" of packages and is space delimited
+# bf-safeupgrade will search for every keyword in the list of packages
+# thus, "image" will blacklist all linux-images, but also imagemagick
+#
+# please make sure the list is enclosed in quotes
+BLACKLIST="pam xorg ldap libc6"
